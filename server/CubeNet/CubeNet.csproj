@@ -54,6 +54,7 @@
     <Compile Include="Network\PacketWriter.cs" />
     <Compile Include="Network\Print.cs" />
     <Compile Include="Network\Tools.cs" />
+    <Compile Include="Packets\ConnectionInformation.cs" />
     <Compile Include="Packets\SelectOpcode.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

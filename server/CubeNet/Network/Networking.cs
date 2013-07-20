@@ -146,7 +146,7 @@ namespace CubeNet
                         while (checkData) // repeat while we have 
                         {
                             checkData = false;
-                            if (bufCount >= 2) // a minimum of 2 byte is required for us
+                            if (bufCount >= 4) // a minimum of 2 byte is required for us
                             {
                                 Decode de = new Decode(wSocket, buffer, recvSize, this, Packets);
                                 OnReceiveData(de); // call the handling routine

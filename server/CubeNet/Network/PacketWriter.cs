@@ -42,15 +42,15 @@ namespace CubeNet
             {
                 bw.Write(data);
             }
-            public void Create(ushort opcode)
+            public void Create(int opcode)
             {
                 bw = null;
                 ms = null;
                 ms = new MemoryStream();
                 bw = new BinaryWriter(ms);
 
-                bw.Write((ushort)0);
-                Word(opcode);
+                //bw.Write((ushort)0);
+                DWord(opcode);
             }
             public void Word(ushort data)
             {
@@ -145,7 +145,7 @@ namespace CubeNet
                 ushort len = (ushort)(ms.Position);
                 ms.Position = 0;
 
-                bw.Write(len);
+                //bw.Write(len);
                 bw.Flush();
                 bw.Close();
                 data = ms.ToArray();

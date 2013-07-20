@@ -71,7 +71,7 @@ namespace CubeNet
                         OPCODE = br.ReadUInt16();
 
                         byte[] b = new byte[dataSize];
-                        Array.Copy(buffer, 2, b, 0, dataSize);
+                        Array.Copy(buffer, 4, b, 0, dataSize);
 
                         BUFFER = b;
                         
