@@ -159,18 +159,6 @@ namespace CubeNet
                 bw.Close();
                 data = ms.ToArray();
                 ms.Close();
-                /*if (data.Length >= 15)
-                {
-                    byte[] tesd = new byte[30];
-                    Buffer.BlockCopy(data, 0, tesd, 0, 30);
-                    LogDebug.Show("Send->");
-                    LogDebug.HexDump(tesd);
-                }
-                else
-                {
-                    LogDebug.Show("Send->");
-                    LogDebug.HexDump(data);
-                }*/
                 
                 return data;
             }

@@ -8,7 +8,7 @@ namespace CubeNet
 {
     public partial class Systems
     {
-        public static byte[] ConnectionInformation(int uid)
+        public static byte[] ConnectionInformation(ulong uid)
         {
             PacketWriter Writer = new PacketWriter();
             Writer.Create(16);

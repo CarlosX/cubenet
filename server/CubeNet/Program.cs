@@ -14,6 +14,7 @@ namespace CubeNet
     class Program
     {
         public static bool debug = true;
+        public static StreamWriter file_log = new StreamWriter("opcodes.txt", false);
         static void Main(string[] args)
         {
             Program pro = new Program();
