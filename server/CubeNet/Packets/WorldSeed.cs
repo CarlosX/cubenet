@@ -8,16 +8,13 @@ namespace CubeNet
 {
     public partial class Systems
     {
-        public static byte[] ConnectionInformation(int uid)
+        public static byte[] WorldSeed()
         {
             PacketWriter Writer = new PacketWriter();
-            Writer.Create(16);
-            Writer.DWord(0);
-            Writer.LWord((ulong)1);
-            Writer.Bytes(new byte[0x1168]);
 
-            Writer.DWord(15);
-            Writer.DWord(26879);
+            Writer.Create(15);
+            Writer.DWord(26879); //ts
+
             return Writer.GetBytes();
         }
     }

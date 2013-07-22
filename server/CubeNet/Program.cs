@@ -6,6 +6,7 @@ using System.Threading;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Diagnostics;
 using CubeNet.Network;
 
 namespace CubeNet
@@ -77,13 +78,13 @@ namespace CubeNet
         }
         public void _OnClientConnect(ref object de, CubeNet.Systems.Client net)
         {
-            //LogConsole.Show("Client Connect!");
+            LogConsole.Show("Client Connect!");
             de = new Systems(net);
         }
 
         public void _OnClientDisconnect(object o)
         {
-            //LogConsole.Show("Client Disconnect!");
+            LogConsole.Show("Client Disconnect!");
             try
             {
                 Systems s = (Systems)o;

@@ -43,12 +43,15 @@ namespace CubeNet
                 {
                     if (ex.ErrorCode == 10049)
                     {
+                        LogDebug.Show("ErrorCode: 10049");
                     }
                     else if (ex.ErrorCode == 10048)
                     {
+                        LogDebug.Show("ErrorCode: 10048");
                     } 
                     else 
                     {
+                        LogDebug.Show("ErrorCode: {0}", ex.ErrorCode);
                     }
                 }
                 catch (Exception ex)
@@ -132,7 +135,8 @@ namespace CubeNet
                                 LocalDisconnect(wSocket);
                             }
                             else
-                            {  // we have something in input buffer and it is not beyond our limits
+                            {
+                                // we have something in input buffer and it is not beyond our limits
                                 Buffer.BlockCopy(tmpbuf, 0, buffer, bufCount, recvSize); // copy the new data to our buffer
                                 bufCount += recvSize; // increase our buffer-counter
                             }
@@ -146,10 +150,20 @@ namespace CubeNet
                         while (checkData) // repeat while we have 
                         {
                             checkData = false;
-                            if (bufCount >= 4) // a minimum of 2 byte is required for us
+                            if (bufCount >= 4 && bufCount >= recvSize) // a minimum of 4 byte is required for us
                             {
                                 Decode de = new Decode(wSocket, buffer, recvSize, this, Packets);
                                 OnReceiveData(de); // call the handling routine
+                                bufCount -= recvSize; // decrease buffer-counter
+                                if (bufCount > 0) // was the buffer greater than the packet needs ? then it may be the next packet
+                                {
+                                    Buffer.BlockCopy(buffer, recvSize, buffer, 0, bufCount); // move the rest to buffer start
+                                    checkData = true; // loop for next packet
+                                }
+                                else
+                                {
+                                    buffer = new byte[MAX_BUFFER];
+                                }
                                 de = null;
                             }
                         }

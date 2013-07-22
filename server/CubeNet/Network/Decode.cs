@@ -11,14 +11,14 @@ namespace CubeNet
     {
         public class Decode
         {
-            private ushort OPCODE;
+            private int OPCODE;
 
             private byte[] BUFFER;
             private Socket socket;
             private object NET;
             private object packet;
             public ushort dataSize;
-            public ushort opcode
+            public int opcode
             {
                 get { return OPCODE; }
             }
@@ -68,10 +68,10 @@ namespace CubeNet
 
                         dataSize = (ushort)lng;
 
-                        OPCODE = br.ReadUInt16();
+                        OPCODE = br.ReadInt32();
 
                         byte[] b = new byte[dataSize];
-                        Array.Copy(buffer, 4, b, 0, dataSize);
+                        Array.Copy(buffer, 0, b, 0, dataSize);
 
                         BUFFER = b;
                         
