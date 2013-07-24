@@ -213,4 +213,20 @@ namespace CubeNet
             return "";
         }
     }
+    class LogOpcodes
+    {
+        StreamWriter w;
+        public LogOpcodes()
+        {
+            w = File.AppendText("log.txt");
+        }
+        public void Write(string data)
+        {
+            w.WriteLine(data);
+        }
+        public void Close()
+        {
+            w.Close();
+        }
+    }
 }

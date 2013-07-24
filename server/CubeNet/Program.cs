@@ -14,12 +14,20 @@ namespace CubeNet
     class Program
     {
         public static bool debug = true;
-        public static StreamWriter file_log = new StreamWriter("opcodes.txt", false);
+        public static StreamReader file_opcodes;
+        public static string path_exe = "";
+        public static List<OpcodeT> OpcodeList = new List<OpcodeT> { };
+        public static List<OpcodeT> OpcodeLog = new List<OpcodeT> { };
+        public static bool Execut = true;
+
         static void Main(string[] args)
         {
             Program pro = new Program();
             Definitions.Bootlogo._Load();
             CubeNet.Systems.Ini ini = null;
+
+            path_exe = Environment.CurrentDirectory;
+            file_opcodes = new StreamReader(path_exe + "\\opcodes.cfg");
 
             #region Default Settings
             int LSPort = 12345;
@@ -49,6 +57,29 @@ namespace CubeNet
             }
             #endregion
 
+            #region Load Opcodes
+            string _temp_line;
+            int _count_op=0;
+            while((_temp_line = file_opcodes.ReadLine()) != null)
+            {
+                try
+                {
+                    string[] _tmp_split = _temp_line.Split('=');
+                    if (_tmp_split[0] != "" && _tmp_split[1] != "")
+                    {
+                        OpcodeT _tmp_op = new OpcodeT();
+                        _tmp_op.opcode = uint.Parse(_tmp_split[0].Replace(" ", ""));
+                        _tmp_op.nombre = _tmp_split[1];
+                        OpcodeList.Add(_tmp_op);
+                        _count_op++;
+                    }
+                }
+                catch { }
+            }
+            file_opcodes.Close();
+            LogConsole.Show("Has loaded {0} Opcodes", _count_op);
+            #endregion
+
             Systems.Server net = new Systems.Server();
 
             net.OnConnect += new Systems.Server.dConnect(pro._OnClientConnect);
@@ -64,15 +95,37 @@ namespace CubeNet
             catch (Exception ex)
             {
                 LogConsole.Show("Starting Server error: {0}", ex);
+                Execut = false;
             }
-
-            while (true)
+            while (Execut)
             {
+                string _command = Console.ReadLine();
+                if (_command != "")
+                {
+                    string[] _dat_c = _command.Split(' ');
+                    switch (_dat_c[0])
+                    {
+                        case "opcode":
+                            if (_dat_c[1] == "dump"){
+                                
+                                using (StreamWriter w = File.AppendText("log_opcode.txt"))
+                                {
+                                    foreach (OpcodeT ad in OpcodeLog)
+                                    {
+                                        w.WriteLine(ad.opcode + "=" + ad.nombre);
+                                    }
+                                    w.Close();
+                                }
+                                OpcodeLog.Clear();
+                            }else if(_dat_c[1] == "count"){
+                                LogDebug.Show("OpcodeCount: {0}", OpcodeLog.Count());
+                            }
+                            break;
+                    }
+                }
                 Thread.Sleep(100);
             }
-
         }
-
         public void _OnReceiveData(CubeNet.Systems.Decode de)
         {
             Systems.oPCode(de);

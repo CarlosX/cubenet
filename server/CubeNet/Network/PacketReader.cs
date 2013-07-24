@@ -22,6 +22,10 @@ namespace CubeNet
             {
                 return br.ReadByte();
             }
+            public byte[] Bytes(int by)
+            {
+                return br.ReadBytes(by);
+            }
             public ushort UInt16()
             {
                 return br.ReadUInt16();

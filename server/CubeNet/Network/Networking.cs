@@ -115,11 +115,12 @@ namespace CubeNet
             public object Packets { get; set; }
             public int bufCount = 0;
             public byte[] buffer = new byte[MAX_BUFFER];
-            public byte[] tmpbuf = new byte[128];
+            public byte[] tmpbuf = new byte[4000];
             public int Version = 0;
 
             public void ReceiveData(IAsyncResult ar)
             {
+
                 Socket wSocket = (Socket)ar.AsyncState;
                 try
                 {
@@ -135,10 +136,9 @@ namespace CubeNet
                                 LocalDisconnect(wSocket);
                             }
                             else
-                            {
-                                buffer = new byte[MAX_BUFFER];
-                                // we have something in input buffer and it is not beyond our limits
+                            {  // we have something in input buffer and it is not beyond our limits
                                 Buffer.BlockCopy(tmpbuf, 0, buffer, bufCount, recvSize); // copy the new data to our buffer
+                                bufCount += recvSize; // increase our buffer-counter
                             }
                         }
                         else
@@ -147,18 +147,30 @@ namespace CubeNet
                             LocalDisconnect(wSocket);
                         }
 
-                        if (checkData) // repeat while we have 
+                        while (checkData) // repeat while we have 
                         {
-                            if (recvSize >= 4) // a minimum of 4 byte is required for us
+                            checkData = false;
+                            if (bufCount >= 6) // a minimum of 6 byte is required for us
                             {
-                                Decode de = new Decode(wSocket, buffer, recvSize, this, Packets);
-                                OnReceiveData(de); // call the handling routine
+                                Decode de = new Decode(buffer); // only get get the size first
+                                if (bufCount >= recvSize)  // that's a complete packet, lets call the handler
+                                {
+                                    de = new Decode(wSocket, buffer, recvSize, this, Packets);  // build up the Decode structure for next step
+                                    OnReceiveData(de); // call the handling routine
+                                    bufCount -= recvSize; // decrease buffer-counter
+                                    if (bufCount > 0) // was the buffer greater than the packet needs ? then it may be the next packet
+                                    {
+                                        Buffer.BlockCopy(buffer, recvSize, buffer, 0, bufCount); // move the rest to buffer start
+                                        checkData = true; // loop for next packet
+                                    }
+                                }
                                 de = null;
                             }
                         }
                         // start the next async read
                         if (wSocket != null && wSocket.Connected)
                         {
+                            Array.Clear(tmpbuf, 0, tmpbuf.Length);
                             wSocket.BeginReceive(tmpbuf, 0, tmpbuf.Length, SocketFlags.None, new AsyncCallback(ReceiveData), wSocket);
                         }
                     }

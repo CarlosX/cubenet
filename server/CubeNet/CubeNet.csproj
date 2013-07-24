@@ -35,6 +35,9 @@
     <ApplicationIcon>xfs.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Ionic.Zlib">
+      <HintPath>dlls\zlib\Debug\Ionic.Zlib.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -47,6 +50,7 @@
     <Compile Include="Definitions\Bootlogo.cs" />
     <Compile Include="Definitions\DataClass.cs" />
     <Compile Include="Definitions\Definitions.cs" />
+    <Compile Include="Definitions\OpcodeList.cs" />
     <Compile Include="LogConsole.cs" />
     <Compile Include="Network\Decode.cs" />
     <Compile Include="Network\Framework.IPCServer.cs" />
@@ -57,6 +61,7 @@
     <Compile Include="Network\PacketWriter.cs" />
     <Compile Include="Network\Print.cs" />
     <Compile Include="Network\Tools.cs" />
+    <Compile Include="Network\zlibscript.cs" />
     <Compile Include="Packets\ConnectionInformation.cs" />
     <Compile Include="Packets\SelectOpcode.cs" />
     <Compile Include="Packets\WorldSeed.cs" />
