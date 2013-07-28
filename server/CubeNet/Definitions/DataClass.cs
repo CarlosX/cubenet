@@ -16,6 +16,11 @@ namespace CubeNet.Global
         public static string LocalIP = "";
         public static bool multihomed = false;
     }
+    public static class Config
+    {
+        public static int world_seed = 1234;
+        public static ulong max_players = 7;
+    }
     public static class Product
     {
         public static string Productname = "SERVER";

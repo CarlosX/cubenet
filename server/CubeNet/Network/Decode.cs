@@ -68,13 +68,14 @@ namespace CubeNet
 
                         dataSize = (ushort)lng;
 
-                        OPCODE = br.ReadUInt32();
+                        byte[] _datop = br.ReadBytes(4);
+
+                        OPCODE = BitConverter.ToUInt32(_datop, 0);
 
                         byte[] b = new byte[dataSize];
                         Array.Copy(buffer, 0, b, 0, dataSize);
 
                         BUFFER = b;
-                        
 
                         //security = br.ReadUInt16();
                     

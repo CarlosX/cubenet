@@ -4,14 +4,17 @@ using System.Linq;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
+using System.IO;
+using CubeNet.Packets;
+using CubeNet.Structures;
 
 namespace CubeNet
 {
     public partial class Systems
     {
-        public static int MAX_BUFFER = 8192;
         public class Server
         {
+            #region define
             public delegate void dReceive(Decode de);
             public delegate void dConnect(ref object de, Client net);
             public delegate void dError(Exception ex);
@@ -20,214 +23,185 @@ namespace CubeNet
             public event dConnect OnConnect;
             public event dError OnError;
 
-            Socket serverSocket;
+            public delegate Packet.Base PacketParserCl(Client client, Server _server);
+            public Dictionary<int, PacketParserCl> PacketParsers;
+            public Dictionary<ulong, Client> Clients;
 
-            public void Start(string ip, int PORT)
+            TcpListener clientListener;
+            #endregion
+            public void Start(string _ip, int _port)
             {
-                IPAddress myIP = IPAddress.Any;
-                if (ip != "")
-                {
-                    myIP = IPAddress.Parse(ip);
-                }
-                IPEndPoint EndPoint = new IPEndPoint(myIP, PORT);
-                
-                serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                Clients = new Dictionary<ulong, Client>();
+                PacketParsers = new Dictionary<int, PacketParserCl>();
+                PacketParsers.Add((int)CSPacketIDs.EntityUpdate, Packet.EntityUpdate.Parse);
+                PacketParsers.Add((int)CSPacketIDs.Interact, Packet.Interact.Parse);
+                PacketParsers.Add((int)CSPacketIDs.Hit, Packet.Hit.Parse);
+                PacketParsers.Add((int)CSPacketIDs.Shoot, Packet.Shoot.Parse);
+                PacketParsers.Add((int)CSPacketIDs.ClientChatMessage, Packet.ChatMessage.Parse);
+                PacketParsers.Add((int)CSPacketIDs.ChunkDiscovered, Packet.UpdateChunk.Parse);
+                PacketParsers.Add((int)CSPacketIDs.SectorDiscovered, Packet.UpdateSector.Parse);
+                PacketParsers.Add((int)CSPacketIDs.ClientVersion, Packet.ClientVersion.Parse);
+
+                IPEndPoint _endp = new IPEndPoint(IPAddress.Parse(_ip), _port);
 
                 try
                 {
-                    serverSocket.Bind(EndPoint);
-                    serverSocket.Listen(5);
-                    serverSocket.BeginAccept(new AsyncCallback(ClientConnect), null);
+                    clientListener = new TcpListener(_endp);
+                    clientListener.Start();
+                    clientListener.BeginAcceptTcpClient(ClientConnect, null);
                 }
                 catch (SocketException ex)
                 {
                     if (ex.ErrorCode == 10049)
-                    {
                         LogDebug.Show("ErrorCode: 10049");
-                    }
                     else if (ex.ErrorCode == 10048)
-                    {
                         LogDebug.Show("ErrorCode: 10048");
-                    } 
                     else 
-                    {
                         LogDebug.Show("ErrorCode: {0}", ex.ErrorCode);
-                    }
                 }
-                catch (Exception ex)
-                {
-                    OnError(ex);
-                }
+                catch (Exception ex) { OnError(ex); }
                 finally { }
             }
             private void ClientConnect(IAsyncResult ar)
             {
                 try
                 {
-                    Socket wSocket = serverSocket.EndAccept(ar);
-                    wSocket.DontFragment = false;
-
-
+                    var tcpClient = clientListener.EndAcceptTcpClient(ar);
+                    string ip = (tcpClient.Client.RemoteEndPoint as IPEndPoint).Address.ToString();
+                    Client newClient = new Client(tcpClient, this);
+                    Clients.Add(newClient.ID, newClient);
                     object p = null;
-                    Client Player = new Client();
                     try
                     {
-                        OnConnect(ref p, Player);
+                        OnConnect(ref p, newClient);
+                        newClient.Packets = p;
+                        newClient.IP = ip;
                     }
-                    catch (Exception)
-                    {
-                        
-                    }
-
-                    Player.Packets = p;
-                    Player.clientSocket = wSocket;
-
-                    serverSocket.BeginAccept(new AsyncCallback(ClientConnect), null);
+                    catch (Exception){}
                     try
                     {
-                        wSocket.BeginReceive(Player.tmpbuf, 0, Player.tmpbuf.Length, SocketFlags.None, new AsyncCallback(Player.ReceiveData), wSocket);
+                        clientListener.BeginAcceptTcpClient(ClientConnect, null);
                     }
                     catch (SocketException){}
-                    catch (Exception)
-                    {
-                    }
-                    
+                    catch (Exception){}
                 }
-                catch (ObjectDisposedException)
-                {
-                }
-                catch (Exception ex)
-                {
-                    OnError(ex);
-                }
+                catch (ObjectDisposedException){}
+                catch (Exception ex){ OnError(ex); }
+            }
+            public void HandleRecvPacket(int id, Client client)
+            {
+                if(id != 0)
+                Console.WriteLine("opcode: {0}", id);
 
+                Packet.Base message = PacketParsers[id].Invoke(client, this);
+                if (message != null)
+                    message.Process();
+            }
+            public ulong CreateID()
+            {
+                if (Clients.Count() > 0)
+                {
+                    for (ulong i = 1; i < Global.Config.max_players; i++)
+                    {
+                        if (Clients.ContainsKey(i) == false)
+                            return i;
+                    }
+                }
+                else
+                    return 1;
+                return 0;
+            }
+            public Client[] GetClients()
+            {
+                return GetClients(null);
+            }
+            public Client[] GetClients(Client except)
+            {
+                return Clients.Values.Where(cl => cl != except && cl.Joined).ToArray();
             }
         }
         public class Client
         {
-            public delegate void dReceive(Decode de);
+            #region define
             public delegate void dDisconnect(object o);
-
-            public static event dReceive OnReceiveData;
             public static event dDisconnect OnDisconnect;
-            public Socket clientSocket;
-
             public object Packets { get; set; }
-            public int bufCount = 0;
-            public byte[] buffer = new byte[MAX_BUFFER];
-            public byte[] tmpbuf = new byte[4000];
-            public int Version = 0;
-
-            public void ReceiveData(IAsyncResult ar)
+            public bool Joined;
+            public NetReader Reader;
+            public BinaryWriter Writer;
+            public NetworkStream NetStream;
+            public ulong ID { get; private set; }
+            public Entity Entity;
+            public string IP;
+            public Server Server { get; private set; }
+            private bool disconnecting;
+            TcpClient tcp;
+            byte[] recvBuffer;
+            #endregion
+            public Client(TcpClient tcpClient, Server _serv)
             {
-
-                Socket wSocket = (Socket)ar.AsyncState;
+                Joined = false;
+                Entity = null;
+                disconnecting = false;
+                tcp = tcpClient;
+                IP = (tcp.Client.RemoteEndPoint as IPEndPoint).Address.ToString();
+                NetStream = tcp.GetStream();
+                Reader = new NetReader(NetStream);
+                Writer = new BinaryWriter(NetStream);
+                Server = _serv;
+                ID = Server.CreateID();
+                if (ID == 0)
+                    ID = Global.Config.max_players + 1;
+                recvBuffer = new byte[4];
+                NetStream.BeginRead(recvBuffer, 0, 4, HeadCallback, null);
+            }
+            void HeadCallback(IAsyncResult result)
+            {
+                if (!tcp.Connected)
+                {
+                    tcp.Close();
+                    return;
+                }
+                if (disconnecting)
+                    return;
+                int bytesRead = 0;
                 try
                 {
-                    if (wSocket.Connected)
+                    bytesRead = NetStream.EndRead(result);
+                    if (bytesRead == 4)
                     {
-                        int recvSize = wSocket.EndReceive(ar);  // get the count of received bytes
-                        bool checkData = true;
-                        if (recvSize > 0)
-                        {
-                            if ((recvSize + bufCount) > MAX_BUFFER)  // that may be a try to force buffer overflow, we don't allow that ;)
-                            {
-                                checkData = false;
-                                LocalDisconnect(wSocket);
-                            }
-                            else
-                            {  // we have something in input buffer and it is not beyond our limits
-                                Buffer.BlockCopy(tmpbuf, 0, buffer, bufCount, recvSize); // copy the new data to our buffer
-                                bufCount += recvSize; // increase our buffer-counter
-                            }
-                        }
-                        else
-                        {   // 0 bytes received, this should be a disconnect
-                            checkData = false;
-                            LocalDisconnect(wSocket);
-                        }
-
-                        while (checkData) // repeat while we have 
-                        {
-                            checkData = false;
-                            if (bufCount >= 6) // a minimum of 6 byte is required for us
-                            {
-                                Decode de = new Decode(buffer); // only get get the size first
-                                if (bufCount >= recvSize)  // that's a complete packet, lets call the handler
-                                {
-                                    de = new Decode(wSocket, buffer, recvSize, this, Packets);  // build up the Decode structure for next step
-                                    OnReceiveData(de); // call the handling routine
-                                    bufCount -= recvSize; // decrease buffer-counter
-                                    if (bufCount > 0) // was the buffer greater than the packet needs ? then it may be the next packet
-                                    {
-                                        Buffer.BlockCopy(buffer, recvSize, buffer, 0, bufCount); // move the rest to buffer start
-                                        checkData = true; // loop for next packet
-                                    }
-                                }
-                                de = null;
-                            }
-                        }
-                        // start the next async read
-                        if (wSocket != null && wSocket.Connected)
-                        {
-                            Array.Clear(tmpbuf, 0, tmpbuf.Length);
-                            wSocket.BeginReceive(tmpbuf, 0, tmpbuf.Length, SocketFlags.None, new AsyncCallback(ReceiveData), wSocket);
-                        }
+                        int op = BitConverter.ToInt32(recvBuffer, 0);
+                        Server.HandleRecvPacket(op, this);
                     }
-                    else
-                    {
-                        LocalDisconnect(wSocket);
-                    }
+                    NetStream.BeginRead(recvBuffer, 0, 4, HeadCallback, null);
                 }
-                catch (SocketException)  // explicit handling of SocketException
-                {
-                    LocalDisconnect(wSocket);
-                }
-                catch (Exception) // other exceptions
-                {
-                    LocalDisconnect(wSocket);
-                }
+                catch{ LocalDisconnect(tcp); }
             }
-
             public void Send(byte[] buff)
             {
                 try
                 {
-                    if (buff!=null && buff.Length>0 && clientSocket.Connected)
-                    {
-                        clientSocket.Send(buff);
-                    }
+                    if (buff!=null && buff.Length>0 && tcp.Connected)
+                        Writer.Write(buff);
                 }
-                catch (Exception)
-                {
-                }
+                catch (Exception) {}
             }
-
-            void LocalDisconnect(Socket s)
+            void LocalDisconnect(TcpClient s)
             {
                 if (s != null)
                 {
                     try
                     {
                         if (OnDisconnect != null)
-                        {
                             OnDisconnect(this.Packets);
-                        }
                     }
-                    catch (Exception)
-                    {
-                    }
+                    catch (Exception) { }
                 }
             }
-
-            public void Disconnect(Socket s)
+            public void Disconnect(TcpClient s)
             {
                 if (s.Connected)
-                {
-                    s.Shutdown(SocketShutdown.Both);
-                    s.Disconnect(true);
                     s.Close();
-                }
             }
         }
     }

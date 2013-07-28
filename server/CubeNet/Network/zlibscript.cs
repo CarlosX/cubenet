@@ -10,7 +10,7 @@ using System.Diagnostics;
 namespace CubeNet{
     public partial class Systems
     {
-        class zlibscript
+        public class zlibscript
         {
             public static byte[] Compress(byte[] data)
             {
